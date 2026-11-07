@@ -1,0 +1,16 @@
+# TODO
+- [x] ffmpeg-build: dibangun di CI (build.yml). Perlu dibuktikan dengan run pertama.
+- [ ] Ganti sisa tautan/kontak ymusic (AppLinks telegram, feedbackEmail, issue/source/terms/changelog; SupportApp.kt; manifest <queries> com.kdev.ymusic.support; SongActions ymusicapp.com; drawer HeaderLink). Butuh URL repo GitHub dan email Cute Fetcher dari pengembang.
+- [ ] Putuskan nasib modul iOS/desktop (dibiarkan dulu; tidak dihapus tanpa build).
+- [ ] Lepas Sentry (telemetry) setelah build dasar hijau; saat ini mati karena DSN kosong.
+- [ ] Ikon launcher dan tema CUTE CORE.
+- [ ] build.yml untuk Cute Fetcher (release.yml bawaan YMusic bergantung pada ffmpeg-build dan secrets).
+- [ ] Tahap 2-10 sesuai master prompt.
+- [x] Tahap 3a: mesin Nimiyo via WebView tersambung ke layar. [ ] Tahap 3b: bundel browser Scrapr + shim axios (setelah 3a terbukti).
+- [ ] Tahap 7: :layanan_unduh (implementasi MesinUnduh: HTTP Range, jeda/lanjut, MediaStore/SAF, foreground service).
+- [ ] Tombol tempel papan klip; terjemahan locale lain.
+- [ ] Zona tepi drawer vs pager (KNOWN_ISSUES #24); rapikan drawer; lokalisasi preset mixer; mixer untuk jalur MSE.
+- [ ] Tahap 8: update engine (GitHub Releases Gandzar/CuteFetcher, verifikasi tanda tangan/checksum). Tahap 9: optimasi. Tahap 10: tes + build akhir (satu run penuh karena kuota Actions).
+- [ ] Persistensi antrean unduhan; tampilkan hasil unduhan scraper di Galeri; uji dengar mixer di MSE.
+- [x] Tahap 8 ditulis. [ ] Tahap 9 optimasi (startup, baterai WebView, ukuran APK, hapus modul iOS/desktop bila aman). [ ] Tahap 10 tes + build akhir.
+- [ ] Konfirmasi bahwa tombol "Periksa pembaruan" di Pengaturan YMusic memanggil updates.checkNow().

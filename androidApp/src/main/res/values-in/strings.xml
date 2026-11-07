@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="unduh_cute_judul">Cute Fetcher</string>
+    <string name="unduh_cute_banyak">Mengunduh %1$d berkas</string>
+    <string name="unduh_cute_kanal">Pengunduh</string>
+</resources>
