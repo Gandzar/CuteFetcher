@@ -670,7 +670,7 @@
     <string name="tab_mixer">Mixer</string>
     <string name="tab_galeri">Galeri</string>
     <string name="tab_pengaturan">Pengaturan</string>
-    <string name="mixer_judul">Audio DSP & 8D</string>
+    <string name="mixer_judul">Audio DSP &amp; 8D</string>
     <string name="mixer_aktif">Aktifkan efek</string>
     <string name="mixer_info_lokal">Berlaku untuk file lokal dan streaming YouTube.</string>
     <string name="mixer_preset">Preset</string>
@@ -706,7 +706,7 @@
     <string name="mixer_offset_x">Geser kiri-kanan</string>
     <string name="mixer_offset_z">Geser depan-belakang</string>
     <string name="mixer_transisi">Penghalusan (detik)</string>
-    <string name="mixer_filter">Filter & karakter</string>
+    <string name="mixer_filter">Filter &amp; karakter</string>
     <string name="mixer_hp">High-pass</string>
     <string name="mixer_lp">Low-pass</string>
     <string name="mixer_drive">Drive</string>
