@@ -834,7 +834,7 @@
     <string name="tab_mixer">Mixer</string>
     <string name="tab_galeri">Gallery</string>
     <string name="tab_pengaturan">Settings</string>
-    <string name="mixer_judul">Audio DSP & 8D</string>
+    <string name="mixer_judul">Audio DSP &amp; 8D</string>
     <string name="mixer_aktif">Enable effects</string>
     <string name="mixer_info_lokal">Applies to local files and YouTube streaming.</string>
     <string name="mixer_preset">Presets</string>
@@ -870,7 +870,7 @@
     <string name="mixer_offset_x">Shift left-right</string>
     <string name="mixer_offset_z">Shift front-back</string>
     <string name="mixer_transisi">Smoothing (seconds)</string>
-    <string name="mixer_filter">Filter & character</string>
+    <string name="mixer_filter">Filter &amp; character</string>
     <string name="mixer_hp">High-pass</string>
     <string name="mixer_lp">Low-pass</string>
     <string name="mixer_drive">Drive</string>
