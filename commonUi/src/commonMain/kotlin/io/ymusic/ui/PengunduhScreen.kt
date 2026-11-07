@@ -1,6 +1,7 @@
 package io.ymusic.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -381,8 +382,9 @@ private fun KotakMasukan(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Box(Modifier.weight(1f)) {
-                AnimatedVisibility(visible = platform != null, enter = fadeIn(), exit = fadeOut()) {
-                    platform?.let { LencanaPlatform(stringResource(Res.string.pengunduh_platform_terdeteksi, it.namaTampil)) }
+                // Crossfade (bukan AnimatedVisibility): di dalam Box-di-Row, AnimatedVisibility ambigu (RowScope/BoxScope).
+                Crossfade(targetState = platform, label = "lencanaPlatform") { p ->
+                    if (p != null) LencanaPlatform(stringResource(Res.string.pengunduh_platform_terdeteksi, p.namaTampil))
                 }
             }
             TombolGradien(
