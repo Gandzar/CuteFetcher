@@ -141,13 +141,38 @@ jobs:
       - name: Uji unit
         continue-on-error: true
         working-directory: CuteFetcher
-        run: >-
-          ./gradlew --continue -Pci=true
-          :kmpCommon:jvmTest :projectCommon:jvmTest :settings:jvmTest :media-store:jvmTest
+        shell: bash
+        run: |
+          ./gradlew --continue -Pci=true \
+            :kmpCommon:jvmTest :projectCommon:jvmTest :settings:jvmTest :media-store:jvmTest \
+            :pengambil_media:jvmTest :pembaruan_aplikasi:jvmTest 2>&1 | tee -a ../build.log
 
+      # --continue: kumpulkan error dari SEMUA modul dalam satu run (hemat kuota). Log penuh di artifact "log-build".
       - name: Build APK
         working-directory: CuteFetcher
-        run: ./gradlew -Pproduction=true :androidApp:assembleRelease :engine-js:closureJs :engine-js:closurePlayerJs
+        shell: bash
+        run: |
+          ./gradlew --continue -Pproduction=true \
+            :androidApp:assembleRelease :engine-js:closureJs :engine-js:closurePlayerJs 2>&1 | tee -a ../build.log
+
+      # Ringkasan error tampil di halaman ringkasan run (tab "Summary"), tanpa perlu membuka log panjang.
+      - name: Ringkas error build
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Ringkasan error build'
+            echo '```'
+            { grep -nE '^e: |error:|What went wrong|Execution failed|FAILED|Unresolved reference' build.log || true; } | cut -c1-400 | head -n 150
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: log-build
+          path: build.log
+          if-no-files-found: ignore
 
       - name: Hapus keystore
         if: always()
