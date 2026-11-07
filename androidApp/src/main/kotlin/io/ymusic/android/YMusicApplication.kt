@@ -1106,12 +1106,12 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
     }
 
     private companion object {
-        /** Cute Fetcher: repo sumber rilis/pembaruan. */
-        const val REPO_RILIS = "Gandzar/CuteFetcher"
-
         const val WATCH_MS = 2000L
     }
 }
 
 private const val FEEDBACK_LOG_NAME = "ymusic-log.txt.gz"
+
+/** Cute Fetcher: repo sumber rilis/pembaruan dalam aplikasi. */
+private const val REPO_RILIS = "Gandzar/CuteFetcher"
 private const val FEEDBACK_EXPORT_TIMEOUT_MS = 15_000L
