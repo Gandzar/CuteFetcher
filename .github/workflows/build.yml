@@ -203,14 +203,19 @@ jobs:
         with:
           name: cute-fetcher-apk
           path: apk
-      - name: Buat rilis (draf) dan unggah APK
+      - name: Lampirkan APK ke rilis
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           ls -la apk
-          # SHA256SUMS.txt: cadangan hash untuk updater (GitHub juga menyertakan digest tiap aset).
+          # SHA256SUMS.txt: hash cadangan untuk updater (GitHub juga menyertakan digest tiap aset).
           (cd apk && sha256sum -- *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
-          # Draf: periksa lalu "Publish release" secara manual. Updater hanya melihat rilis yang sudah dipublikasikan.
-          gh release create "$TAG" apk/*.apk apk/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --draft --title "Cute Fetcher $TAG" --generate-notes
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # Rilis sudah dibuat lewat web (tag dibuat dari halaman Releases): lampirkan saja, timpa bila ada.
+            gh release upload "$TAG" apk/*.apk apk/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            # Belum ada rilis (tag didorong dari git): buat draf, publikasikan manual.
+            gh release create "$TAG" apk/*.apk apk/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --draft --title "Cute Fetcher $TAG" --generate-notes
+          fi
