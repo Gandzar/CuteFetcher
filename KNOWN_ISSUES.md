@@ -38,3 +38,7 @@
 38. Server config YMusic dimatikan (REMOTE_CONFIG_URL kosong): pembaruan bundel mesin YouTube (player-js / engine dinamis) dari server mereka tidak ada. Bila YouTube berubah dan ekstraksi/streaming rusak, perbaikannya harus lewat rilis baru aplikasi.
 39. Belum dilakukan sengaja (butuh build nyata untuk ukur): pengecilan APK (modul iOS/desktop tak dipakai, bahasa), profil startup, uji baterai WebView. Lakukan setelah build pertama hijau.
 40. Hal yang TIDAK bisa diaudit tanpa kompilator: tipe/overload Kotlin, API Media3 (setAudioProcessors, onFlush(StreamMetadata)), resolusi Gradle. Itu tugas build pertama (Tahap 10).
+41. (v0.2.0) Penyebab pasti kegagalan Downloader v0.1.0 belum diketahui; ditambahkan perbaikan yang masuk akal (cookie jar, galat jaringan jelas, redirect) + panel debug untuk menemukannya. Server pihak ketiga tetap bisa berubah/mati.
+42. Server Scrapr yang butuh puppeteer (tiktok savetik/tikdownloader, facebook fdown, instagram snapinsta) TIDAK bisa diport ke HP; sengaja dilewati. Server Nimiyo di APK yang kamu kirim identik dengan yang sudah dipakai (tidak ada server baru di sana).
+43. Port Scrapr (savetwt/spotmate/rapidsave) belum pernah dijalankan di perangkat; cek lewat Panel debug > Uji semua server.
+44. Diagnosa: jika SEMUA server gagal dengan "jaringan gagal (...)", penyebabnya jaringan/SSL OkHttp; jika "HTTP 403/503" dengan cuplikan HTML Cloudflare, situs memblokir klien non-browser.

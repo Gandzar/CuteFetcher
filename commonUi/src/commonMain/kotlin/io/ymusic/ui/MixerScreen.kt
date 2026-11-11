@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +46,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,10 +80,12 @@ import io.ymusic.ui.resources.mixer_drive
 import io.ymusic.ui.resources.mixer_lp
 import io.ymusic.ui.resources.mixer_kompresor
 import io.ymusic.ui.resources.mixer_interval
+import io.ymusic.ui.resources.mixer_halus
 import io.ymusic.ui.resources.mixer_hp
 import io.ymusic.ui.resources.mixer_gerak_putar
 import io.ymusic.ui.resources.mixer_gerak_bolak
 import io.ymusic.ui.resources.mixer_gerak_acak
+import io.ymusic.ui.resources.mixer_gambar_petunjuk
 import io.ymusic.ui.resources.mixer_gerak
 import io.ymusic.ui.resources.mixer_fase
 import io.ymusic.ui.resources.mixer_freq_z
@@ -112,7 +120,13 @@ fun MixerScreen(pengendali: PengendaliMixer?, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
     ) {
         item { KartuSaklar(aktif = s.enabled, onUbah = { v -> ubah { it.copy(enabled = v) } }) }
-        item { BolaSuaraKanvas(pengendali, aktif = s.enabled) }
+        item {
+            // Titik jalur dihitung ulang hanya bila parameter jalurnya berubah (sama persis dengan mesin audio).
+            val titik = remember(s.jalurId, s.jalurKustom, s.halusKustom, s.lissajousFreqX, s.lissajousFreqZ, s.lissajousFase) {
+                pengendali.titikJalur(s)
+            }
+            BolaSuaraKanvas(pengendali, aktif = s.enabled, titikJalur = titik)
+        }
         item {
             Bagian(stringResource(Res.string.mixer_preset)) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -136,6 +150,15 @@ fun MixerScreen(pengendali: PengendaliMixer?, modifier: Modifier = Modifier) {
                     ubah { it.copy(width = v) }
                 }
                 BarisSaklar(stringResource(Res.string.mixer_searah), s.clockwise) { v -> ubah { it.copy(clockwise = v) } }
+                if (s.jalurId == PengaturanMixer.JALUR_KUSTOM) {
+                    PapanGambarJalur(
+                        titikAwal = s.jalurKustom,
+                        onSelesai = { baru -> ubah { it.copy(jalurKustom = baru) } },
+                    )
+                    BarisSlider(stringResource(Res.string.mixer_halus), "${s.halusKustom}", s.halusKustom.toFloat(), 0f..8f) { v ->
+                        ubah { it.copy(halusKustom = v.roundToInt()) }
+                    }
+                }
                 Text(stringResource(Res.string.mixer_gerak), color = DesignColors.InkSecondary, fontSize = 13.sp)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { Pil(stringResource(Res.string.mixer_gerak_putar), s.gerak == PengaturanMixer.GERAK_PUTAR) { ubah { it.copy(gerak = PengaturanMixer.GERAK_PUTAR) } } }
@@ -255,7 +278,7 @@ private fun KartuSaklar(aktif: Boolean, onUbah: (Boolean) -> Unit) {
 
 /** Kepala dari atas: bola suara bergerak sesuai posisi nyata dari mesin DSP (bukan animasi palsu). */
 @Composable
-private fun BolaSuaraKanvas(pengendali: PengendaliMixer, aktif: Boolean) {
+private fun BolaSuaraKanvas(pengendali: PengendaliMixer, aktif: Boolean, titikJalur: FloatArray) {
     val bola by pengendali.bola.collectAsState()
     val aksen = DesignColors.Accent
     val garis = DesignColors.Outline
@@ -273,6 +296,17 @@ private fun BolaSuaraKanvas(pengendali: PengendaliMixer, aktif: Boolean) {
             val r = size.minDimension * 0.42f
             for (k in 1..3) {
                 drawCircle(garis.copy(alpha = 0.25f * (4 - k)), radius = r * k / 3f, center = pusat, style = Stroke(width = 1.5f))
+            }
+            // Pratinjau jalur gerak: garis tertutup dari titik-titik yang dipakai mesin audio.
+            if (titikJalur.size >= 4) {
+                val jalur = androidx.compose.ui.graphics.Path()
+                for (i in 0 until titikJalur.size / 2) {
+                    val px = pusat.x + titikJalur[2 * i].coerceIn(-1f, 1f) * r
+                    val py = pusat.y + titikJalur[2 * i + 1].coerceIn(-1f, 1f) * r
+                    if (i == 0) jalur.moveTo(px, py) else jalur.lineTo(px, py)
+                }
+                jalur.close()
+                drawPath(jalur, aksen.copy(alpha = 0.55f), style = Stroke(width = 3f))
             }
             drawCircle(garis.copy(alpha = 0.5f), radius = r * 0.12f, center = pusat) // kepala
             if (aktif) {
@@ -349,6 +383,78 @@ private fun BarisSaklar(label: String, nilai: Boolean, onUbah: (Boolean) -> Unit
         Switch(checked = nilai, onCheckedChange = onUbah)
     }
 }
+
+/**
+ * Papan untuk menggambar jalur gerak suara dengan jari. Titik disimpan ternormalisasi (-1..1) dan dikurangi
+ * menjadi paling banyak [MAKS_TITIK_GAMBAR]; mesin audio menghaluskan dan menutup bentuknya.
+ * Kepala pendengar ada di tengah; atas = depan, bawah = belakang.
+ */
+@Composable
+private fun PapanGambarJalur(titikAwal: List<Float>, onSelesai: (List<Float>) -> Unit) {
+    val garis = remember { mutableStateListOf<Offset>() }
+    var ukuran by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val aksen = DesignColors.Accent
+    val warnaGaris = DesignColors.Outline
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(Res.string.mixer_gambar_petunjuk), color = DesignColors.InkMuted, fontSize = 12.sp)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.4f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(DesignColors.FieldPill)
+                .border(1.dp, DesignColors.OutlineSoft, RoundedCornerShape(16.dp))
+                .onSizeChanged { ukuran = it }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { garis.clear(); garis.add(it) },
+                        onDrag = { perubahan, _ ->
+                            perubahan.consume()
+                            garis.add(perubahan.position)
+                        },
+                        onDragEnd = {
+                            val l = ukuran.width.toFloat().coerceAtLeast(1f)
+                            val t = ukuran.height.toFloat().coerceAtLeast(1f)
+                            if (garis.size >= 3) {
+                                val langkah = (garis.size / MAKS_TITIK_GAMBAR).coerceAtLeast(1)
+                                val hasil = ArrayList<Float>()
+                                garis.filterIndexed { i, _ -> i % langkah == 0 }.forEach { o ->
+                                    hasil.add(((o.x / l) * 2f - 1f).coerceIn(-1f, 1f))
+                                    hasil.add(((o.y / t) * 2f - 1f).coerceIn(-1f, 1f))
+                                }
+                                onSelesai(hasil)
+                            }
+                            garis.clear()
+                        },
+                        onDragCancel = { garis.clear() },
+                    )
+                },
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawLine(warnaGaris.copy(alpha = 0.4f), Offset(size.width / 2f, 0f), Offset(size.width / 2f, size.height), strokeWidth = 1f)
+                drawLine(warnaGaris.copy(alpha = 0.4f), Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), strokeWidth = 1f)
+                drawCircle(warnaGaris.copy(alpha = 0.6f), radius = size.minDimension * 0.05f, center = Offset(size.width / 2f, size.height / 2f))
+                // Sedang digambar: garis hidup; selain itu tampilkan gambar yang tersimpan.
+                if (garis.size >= 2) {
+                    val j = androidx.compose.ui.graphics.Path()
+                    garis.forEachIndexed { i, o -> if (i == 0) j.moveTo(o.x, o.y) else j.lineTo(o.x, o.y) }
+                    drawPath(j, aksen, style = Stroke(width = 5f))
+                } else if (titikAwal.size >= 6) {
+                    val j = androidx.compose.ui.graphics.Path()
+                    for (i in 0 until titikAwal.size / 2) {
+                        val px = (titikAwal[2 * i] + 1f) / 2f * size.width
+                        val py = (titikAwal[2 * i + 1] + 1f) / 2f * size.height
+                        if (i == 0) j.moveTo(px, py) else j.lineTo(px, py)
+                    }
+                    drawPath(j, aksen.copy(alpha = 0.7f), style = Stroke(width = 4f))
+                }
+            }
+        }
+    }
+}
+
+private const val MAKS_TITIK_GAMBAR = 96
 
 /** Satu band EQ: batang vertikal yang bisa diseret atau diketuk (-12..+12 dB). */
 @Composable

@@ -877,4 +877,32 @@
     <string name="mixer_kompresor">Compressor</string>
     <string name="mixer_ruang">Room size</string>
     <string name="mixer_volume">Master volume</string>
+    <string name="debug_judul">Debug panel</string>
+    <string name="debug_tutup">Close</string>
+    <string name="debug_salin">Copy</string>
+    <string name="debug_bagikan">Share</string>
+    <string name="debug_lapor">Report to developer</string>
+    <string name="debug_hapus">Clear</string>
+    <string name="debug_disalin">Copied to clipboard</string>
+    <string name="debug_semua">All</string>
+    <string name="debug_peringatan">Warnings+</string>
+    <string name="debug_galat">Errors</string>
+    <string name="debug_rinci">Detailed log (response snippets)</string>
+    <string name="debug_uji_koneksi">Test connection</string>
+    <string name="debug_uji_server">Test all servers</string>
+    <string name="debug_url_uji">Link to test (e.g. a TikTok link)</string>
+    <string name="debug_info">Device info</string>
+    <string name="debug_sesi_lalu">Previous session log</string>
+    <string name="debug_kosong">No log entries yet.</string>
+    <string name="debug_hasil_uji">Test results</string>
+    <string name="debug_menguji">Testing…</string>
+    <string name="debug_sembunyikan">Hide</string>
+    <string name="debug_tampilkan">Show</string>
+    <string name="debug_lapor_subjek">Cute Fetcher bug report</string>
+    <string name="debug_lapor_catatan">Describe the problem here (what you did, what you expected):</string>
+    <string name="debug_dipotong">Showing the latest %1$d entries.</string>
+    <string name="pengunduh_buka_debug">See details (debug panel)</string>
+    <string name="debug_buka">Debug panel</string>
+    <string name="mixer_halus">Smoothing (drawn path)</string>
+    <string name="mixer_gambar_petunjuk">Draw the path with your finger. You are in the centre; top = front, bottom = behind.</string>
 </resources>

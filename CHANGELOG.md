@@ -1,5 +1,19 @@
 # Changelog
 
+## Cute Fetcher 0.2.0
+
+### BARU
+- Panel debug (Pengaturan > Panel debug): log semua bagian aplikasi (scraper, HTTP, JS, unduhan, mixer, pembaruan) dengan filter, uji koneksi, uji SEMUA server scraper satu per satu, info perangkat, log sesi sebelumnya/crash, serta tombol Salin, Bagikan, dan Lapor ke pengembang.
+- Mixer: pratinjau jalur gerak di kanvas bola suara, dan papan untuk menggambar jalur sendiri dengan jari (penghalusan bisa diatur).
+- Scraper: server tambahan hasil port Scrapr (Twitter/X savetwt, Spotify spotmate, Reddit rapidsave). Reddit kini didukung.
+- Scraper: server dicoba bergantian dengan batas waktu 45 detik per server; server kembar (alias) dihapus dari rantai; hasil menampilkan server mana yang berhasil.
+
+### DIPERBAIKI
+- Efek transisi tab (terutama Kedalaman 3D dan Kertas Parallax): halaman tetangga yang tak terlihat menutupi layar sehingga tidak ada yang bisa diketuk (termasuk lagu di Pustaka).
+- Mixer tidak aktif di streaming YouTube bila belum ada lagu lokal yang diputar sejak aplikasi dibuka. Mixer kini dipasang saat aplikasi mulai.
+- Scraper: cookie sesi sekarang disimpan antar-permintaan (situs downloader dua langkah dulu selalu ditolak), galat jaringan kini dilaporkan dengan jelas, dan redirect bisa dikendalikan.
+- Pesan galat tidak lagi salah menggolongkan banyak kasus sebagai "dibatasi".
+
 ## 4.0.16
 
 ### NEW

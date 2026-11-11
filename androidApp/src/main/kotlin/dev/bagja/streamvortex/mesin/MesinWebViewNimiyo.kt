@@ -4,13 +4,20 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewAssetLoader
+import dev.bagja.streamvortex.pengambil_media.AsalLog
 import dev.bagja.streamvortex.pengambil_media.FormatMedia
+import dev.bagja.streamvortex.pengambil_media.HasilUjiKoneksi
+import dev.bagja.streamvortex.pengambil_media.HasilUjiServer
+import dev.bagja.streamvortex.pengambil_media.JurnalDebug
+import dev.bagja.streamvortex.pengambil_media.PenguiMesin
 import dev.bagja.streamvortex.pengambil_media.HasilMedia
 import dev.bagja.streamvortex.pengambil_media.KategoriGagal
 import dev.bagja.streamvortex.pengambil_media.KegagalanEkstraksi
@@ -25,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.CookieJar
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -49,15 +57,24 @@ class MesinWebViewNimiyo(
     private val context: Context,
     /** Klien HTTP bersama (satu pool koneksi untuk seluruh fitur Cute Fetcher). */
     private val http: OkHttpClient,
-) : PengambilMedia {
+) : PengambilMedia, PenguiMesin {
     override val nama: String = "Nimiyo"
 
-    // Platform yang benar-benar punya rantai server di host.js (REDDIT tidak ada di Nimiyo).
+    // Platform yang punya rantai server di assets/scraper/host.js. REDDIT ikut (server rapidsave dari Scrapr).
     private val didukung = setOf(
         Platform.YOUTUBE, Platform.INSTAGRAM, Platform.TIKTOK, Platform.FACEBOOK, Platform.TWITTER,
         Platform.SPOTIFY, Platform.SOUNDCLOUD, Platform.PINTEREST, Platform.APPLE_MUSIC, Platform.BILIBILI,
-        Platform.DOUYIN, Platform.BANDCAMP, Platform.THREADS, Platform.PIXIV, Platform.REDNOTE,
+        Platform.DOUYIN, Platform.BANDCAMP, Platform.THREADS, Platform.PIXIV, Platform.REDNOTE, Platform.REDDIT,
     )
+
+    /** Penyimpan cookie sesi untuk situs downloader (lihat [JarKukiMemori]). */
+    private val jarKuki = JarKukiMemori()
+
+    /** Klien dengan jar cookie; dipakai bila JS tidak mengatur header Cookie sendiri. */
+    private val klienDenganKuki: OkHttpClient = http.newBuilder().cookieJar(jarKuki).build()
+
+    /** Klien TANPA jar; dipakai bila scraper menyusun header Cookie sendiri (agar tidak ditimpa jar). */
+    private val klienTanpaKuki: OkHttpClient = http.newBuilder().cookieJar(CookieJar.NO_COOKIES).build()
 
     override fun mendukung(platform: Platform): Boolean = platform in didukung
 
@@ -89,8 +106,9 @@ class MesinWebViewNimiyo(
                 val hasil = try {
                     doHttp(JSONObject(optsJson))
                 } catch (e: Exception) {
+                    JurnalDebug.e(AsalLog.HTTP, "✗ ${e.javaClass.simpleName}: ${e.message}")
                     JSONObject().put("status", 0).put("headers", JSONObject()).put("data", "")
-                        .put("error", e.message ?: "network").toString()
+                        .put("error", "${e.javaClass.simpleName}: ${e.message ?: "jaringan"}").toString()
                 }
                 val js = "(function(){var c=(window.__nimiyoShareCallbacks||{})[${JSONObject.quote(reqId)}];" +
                     "if(c)c(${JSONObject.quote(hasil)});})()"
@@ -106,6 +124,16 @@ class MesinWebViewNimiyo(
 
         @JavascriptInterface fun onResult(reqId: String, json: String) {
             menunggu.remove(reqId)?.complete(json)
+        }
+
+        /** Log dari host.js: tingkat "D"/"I"/"W"/"E". */
+        @JavascriptInterface fun log(tingkat: String, pesan: String) {
+            when (tingkat) {
+                "E" -> JurnalDebug.e(AsalLog.SCRAPER, pesan)
+                "W" -> JurnalDebug.w(AsalLog.SCRAPER, pesan)
+                "D" -> JurnalDebug.d(AsalLog.SCRAPER, pesan)
+                else -> JurnalDebug.i(AsalLog.SCRAPER, pesan)
+            }
         }
     }
 
@@ -132,7 +160,15 @@ class MesinWebViewNimiyo(
                 ?: if (data != null && (data.startsWith("{") || data.startsWith("["))) "application/json" else "application/x-www-form-urlencoded"
             builder.method(method, (data ?: "").toRequestBody(type.toMediaTypeOrNull()))
         }
-        return http.newCall(builder.build()).execute().use { resp ->
+        val adaKukiManual = headers.keys().asSequence().any { it.equals("cookie", ignoreCase = true) }
+        var klien = if (adaKukiManual) klienTanpaKuki else klienDenganKuki
+        val tanpaRedirect = o.optBoolean("noRedirect", false)
+        if (tanpaRedirect) klien = klien.newBuilder().followRedirects(false).followSslRedirects(false).build()
+
+        val label = "$method ${JurnalDebug.sensorUrl(url)}"
+        JurnalDebug.d(AsalLog.HTTP, "→ $label")
+        val mulai = System.nanoTime()
+        return klien.newCall(builder.build()).execute().use { resp ->
             val hdrs = JSONObject()
             for (name in resp.headers.names()) {
                 val values = resp.headers.values(name)
@@ -140,6 +176,14 @@ class MesinWebViewNimiyo(
             }
             // Batas 8 MB di memori agar halaman raksasa tidak menghabiskan RAM.
             val badan = resp.peekBody(BATAS_BADAN_BYTE).string()
+            val ms = (System.nanoTime() - mulai) / 1_000_000
+            val ringkas = "← ${resp.code} ${badan.length}B ${ms}ms $label"
+            if (resp.isSuccessful || resp.code in 300..399) {
+                JurnalDebug.d(AsalLog.HTTP, ringkas)
+            } else {
+                // Respons gagal: sertakan cuplikan isi (mis. halaman Cloudflare/blokir) untuk analisis.
+                JurnalDebug.w(AsalLog.HTTP, "$ringkas | ${JurnalDebug.cuplikan(badan)}")
+            }
             JSONObject().put("status", resp.code).put("headers", hdrs).put("data", badan).toString()
         }
     }
@@ -161,6 +205,18 @@ class MesinWebViewNimiyo(
                 wv.settings.setSupportMultipleWindows(false)
                 wv.addJavascriptInterface(JembatanHttp(), "NimiyoShareBridge")
                 wv.addJavascriptInterface(KaitanNative(), "CuteNative")
+                // Tangkap console.log/error dari JS ke jurnal debug.
+                wv.webChromeClient = object : WebChromeClient() {
+                    override fun onConsoleMessage(pesan: ConsoleMessage): Boolean {
+                        val teks = "${pesan.message()} (${pesan.sourceId().substringAfterLast('/')}:${pesan.lineNumber()})"
+                        when (pesan.messageLevel()) {
+                            ConsoleMessage.MessageLevel.ERROR -> JurnalDebug.e(AsalLog.JS, teks)
+                            ConsoleMessage.MessageLevel.WARNING -> JurnalDebug.w(AsalLog.JS, teks)
+                            else -> JurnalDebug.d(AsalLog.JS, teks)
+                        }
+                        return true
+                    }
+                }
                 wv.webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                         if (request.url.host == HOST_ASET) return pemuat.shouldInterceptRequest(request.url)
@@ -171,6 +227,7 @@ class MesinWebViewNimiyo(
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                         request.url.host != HOST_ASET
                 }
+                JurnalDebug.i(AsalLog.SCRAPER, "WebView mesin dibuat, memuat host.html")
                 wv.loadUrl("https://$HOST_ASET/assets/scraper/host.html")
                 webView = wv
             }
@@ -213,22 +270,72 @@ class MesinWebViewNimiyo(
     }
 
     override suspend fun ekstrak(url: String, platform: Platform): HasilMedia {
+        JurnalDebug.i(AsalLog.SCRAPER, "ekstrak ${platform.namaTampil}: ${JurnalDebug.sensorUrl(url)}")
         val r = panggil("scrape", url)
-        if (!r.optBoolean("ok")) throw klasifikasi(r.optString("message"))
-        val hasil = r.optJSONObject("result")
+        if (!r.optBoolean("ok")) {
+            val pesanJs = r.optString("pesan")
+            JurnalDebug.e(AsalLog.SCRAPER, "ekstrak gagal: ${pesanJs.replace('\n', ' ').take(600)}")
+            throw klasifikasi(pesanJs)
+        }
+        val hasil = r.optJSONObject("hasil")
             ?: throw KegagalanEkstraksi(KategoriGagal.INTERNAL, "Balasan mesin tidak lengkap.")
-        return PemetaHasilNimiyo.petakan(platform, nama, url, hasil.toString())
+        val server = r.optString("server")
+        return PemetaHasilNimiyo.petakan(platform, if (server.isNotEmpty()) "$nama/$server" else nama, url, hasil.toString())
     }
 
-    /** Ubah tautan semu ("*_resolve:...") menjadi URL unduhan nyata. Dipakai mesin unduh (Tahap 7). */
+    /** Ubah tautan semu ("*_resolve:...") menjadi URL unduhan nyata. Dipakai mesin unduh. */
     suspend fun selesaikan(format: FormatMedia): String {
         val mentah = format.dataMentah
             ?: throw KegagalanEkstraksi(KategoriGagal.INTERNAL, "Data format tidak lengkap.")
         val r = panggil("resolve", mentah)
-        if (!r.optBoolean("ok")) throw klasifikasi(r.optString("message"))
+        if (!r.optBoolean("ok")) throw klasifikasi(r.optString("pesan"))
         return r.optString("url").takeIf { it.isNotBlank() }
             ?: throw KegagalanEkstraksi(KategoriGagal.TIDAK_ADA_MEDIA, "Server tidak memberi tautan unduhan.")
     }
+
+    // ----- alat diagnosa untuk panel debug ([PenguiMesin]) -----------------------------------------
+
+    override suspend fun ujiKoneksi(): List<HasilUjiKoneksi> = withContext(Dispatchers.IO) {
+        val sasaran = listOf(
+            "Internet (Google)" to "https://www.google.com/generate_204",
+            "GitHub API" to "https://api.github.com/zen",
+            "SaveTWT" to "https://savetwt.com/",
+            "RapidSave" to "https://rapidsave.com/",
+            "SpotiMate" to "https://spotimate.app/en1",
+            "SnapSave" to "https://snapsave.app/",
+        )
+        sasaran.map { (nama, alamat) ->
+            val mulai = System.nanoTime()
+            try {
+                val req = Request.Builder().url(alamat).header("User-Agent", "Mozilla/5.0 (Linux; Android 14) Chrome/124 Mobile").build()
+                klienTanpaKuki.newCall(req).execute().use { resp ->
+                    val ms = (System.nanoTime() - mulai) / 1_000_000
+                    val ok = resp.code in 200..399
+                    val ket = if (ok) "HTTP ${resp.code}" else "HTTP ${resp.code} (diblokir/ditolak situs?)"
+                    JurnalDebug.i(AsalLog.HTTP, "uji $nama: $ket ${ms}ms")
+                    HasilUjiKoneksi(nama, ok, ms, ket)
+                }
+            } catch (e: Exception) {
+                val ms = (System.nanoTime() - mulai) / 1_000_000
+                JurnalDebug.e(AsalLog.HTTP, "uji $nama gagal: ${e.javaClass.simpleName}: ${e.message}")
+                HasilUjiKoneksi(nama, false, ms, "${e.javaClass.simpleName}: ${e.message ?: ""}")
+            }
+        }
+    }
+
+    override suspend fun ujiSemuaServer(url: String): List<HasilUjiServer> {
+        val r = panggil("diagnose", url)
+        if (!r.optBoolean("ok")) throw KegagalanEkstraksi(KategoriGagal.PLATFORM_TIDAK_DIDUKUNG, r.optString("pesan").ifBlank { "Tautan belum didukung." })
+        val daftar = r.optJSONArray("hasilServer") ?: JSONArray()
+        return (0 until daftar.length()).map { i ->
+            val o = daftar.getJSONObject(i)
+            HasilUjiServer(o.optString("server"), o.optBoolean("sukses"), o.optLong("ms"), o.optString("pesan"))
+        }
+    }
+
+    override fun statusMesin(): String =
+        "WebView: ${if (webView != null) "hidup" else "belum dibuat/dibuang (hemat memori)"}; " +
+            "permintaan aktif: ${sibuk.get()}; cookie tersimpan: ${jarKuki.jumlah}; platform didukung: ${didukung.size}"
 
     /** Pesan JS bisa berisi potongan HTML/teknis; pengguna hanya melihat kategori + kalimat baku. */
     private fun klasifikasi(pesanJs: String): KegagalanEkstraksi {
@@ -237,9 +344,9 @@ class MesinWebViewNimiyo(
         return when {
             "belum didukung" in m || "not supported" in m ->
                 KegagalanEkstraksi(KategoriGagal.PLATFORM_TIDAK_DIDUKUNG, "Tautan ini belum didukung.", sebab)
-            listOf("blocked", "rate", "private", "login", "protected", "429", "403", "age").any { it in m } ->
+            listOf("blocked", "rate limit", "rate-limit", "too many", "private", "login", "protected", "429", "403", "age-restricted", "membatasi").any { it in m } ->
                 KegagalanEkstraksi(KategoriGagal.DIBATASI, "Server membatasi atau konten ini privat.", sebab)
-            listOf("network", "timeout", "timed out", "unable to resolve", "econn").any { it in m } ->
+            listOf("network", "timeout", "timed out", "unable to resolve", "econn", "jaringan gagal", "waktu habis", "unknownhost", "sslhandshake").any { it in m } ->
                 KegagalanEkstraksi(KategoriGagal.JARINGAN, "Gangguan jaringan saat menghubungi server.", sebab)
             else -> KegagalanEkstraksi(KategoriGagal.TIDAK_ADA_MEDIA, "Tidak ada media yang berhasil diambil.", sebab)
         }

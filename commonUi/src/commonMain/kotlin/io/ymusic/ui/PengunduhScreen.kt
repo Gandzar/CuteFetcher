@@ -93,6 +93,7 @@ import io.ymusic.ui.resources.pengunduh_analisis
 import io.ymusic.ui.resources.pengunduh_antrean
 import io.ymusic.ui.resources.pengunduh_antrean_kosong
 import io.ymusic.ui.resources.pengunduh_batal
+import io.ymusic.ui.resources.pengunduh_buka_debug
 import io.ymusic.ui.resources.pengunduh_bersihkan
 import io.ymusic.ui.resources.pengunduh_dibatalkan
 import io.ymusic.ui.resources.pengunduh_didukung
@@ -151,6 +152,8 @@ fun PengunduhScreen(
     pengelola: PengelolaScraper?,
     mesinUnduh: MesinUnduh?,
     modifier: Modifier = Modifier,
+    /** Membuka panel debug (dipakai tombol "Lihat detail" di kartu galat); null = tombol disembunyikan. */
+    onBukaDebug: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     var masukan by remember { mutableStateOf("") }
@@ -222,6 +225,7 @@ fun PengunduhScreen(
                     is TahapPengunduh.Gagal -> KartuPesan(
                         pesanGagal(t.kategori),
                         galat = true,
+                        onDetail = onBukaDebug,
                         detail = t.detail.takeIf { t.kategori == KategoriGagal.DIBATASI || t.kategori == KategoriGagal.JARINGAN },
                     )
                     is TahapPengunduh.Hasil -> KartuHasil(
@@ -447,7 +451,7 @@ private fun StatusMemuat() {
 }
 
 @Composable
-private fun KartuPesan(teks: String, galat: Boolean, detail: String? = null) {
+private fun KartuPesan(teks: String, galat: Boolean, detail: String? = null, onDetail: (() -> Unit)? = null) {
     val warna = if (galat) Color(0xFFE5484D) else DesignColors.Accent
     Row(
         Modifier
@@ -463,6 +467,15 @@ private fun KartuPesan(teks: String, galat: Boolean, detail: String? = null) {
             Text(teks, color = DesignColors.InkStrong, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             // Detail dari mesin hanya untuk pembatasan/jaringan (pesan sudah aman ditampilkan).
             if (!detail.isNullOrBlank()) Text(detail, color = DesignColors.InkMuted, fontSize = 12.sp)
+            if (onDetail != null) {
+                Text(
+                    stringResource(Res.string.pengunduh_buka_debug),
+                    color = DesignColors.Accent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onDetail).padding(top = 4.dp, bottom = 2.dp),
+                )
+            }
         }
     }
 }

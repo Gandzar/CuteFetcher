@@ -165,6 +165,10 @@ class AppGraph(
     val mesinUnduh: dev.bagja.streamvortex.pengambil_media.MesinUnduh? = null,
     /** Cute Fetcher: kontrol mixer DSP/8D (tab Mixer); null = tidak tersedia di platform ini. */
     val pengendaliMixer: dev.bagja.streamvortex.pengolah_audio.PengendaliMixer? = null,
+    /** Cute Fetcher: alat diagnosa mesin scraper untuk panel debug; null = tidak tersedia. */
+    val penguiMesin: dev.bagja.streamvortex.pengambil_media.PenguiMesin? = null,
+    /** Cute Fetcher: aksi laporan (bagikan/email/info perangkat); null = tidak tersedia. */
+    val aksiLaporan: dev.bagja.streamvortex.pengambil_media.AksiLaporan? = null,
     /**
      * True when [playerSurface] may be shown at any size (MSE blit / ffmpeg frames scale) —
      * the mini player then hosts it as its 36dp art tile. False keeps a real-size docked preview

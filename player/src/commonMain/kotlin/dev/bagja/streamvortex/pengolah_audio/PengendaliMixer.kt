@@ -48,9 +48,14 @@ data class PengaturanMixer(
     val offsetZ: Float = 0f,
     val transisiDetik: Float = 0.8f,
     val volume: Float = 0.9f,
+    /** Jalur gambar sendiri: titik berselang-seling [x0, z0, x1, z1, ...] dalam rentang -1..1 (jalurId = "custom"). */
+    val jalurKustom: List<Float> = emptyList(),
+    /** Tingkat penghalusan jalur gambar sendiri, 0..8. */
+    val halusKustom: Int = 4,
 ) {
     companion object {
         const val JALUR_LISSAJOUS = "lissajous"
+        const val JALUR_KUSTOM = "custom"
         const val GERAK_PUTAR = "loop"
         const val GERAK_BOLAK_BALIK = "pingpong"
         const val GERAK_ACAK = "random"
@@ -68,6 +73,12 @@ interface PengendaliMixer {
     val daftarPreset: List<InfoPreset>
 
     fun ubah(transformasi: (PengaturanMixer) -> PengaturanMixer)
+
+    /**
+     * Titik jalur gerak yang sedang dipilih untuk digambar sebagai pratinjau: [x0, z0, x1, z1, ...]
+     * (x kiri-kanan, z depan-belakang, rentang -1..1). Sama persis dengan yang dipakai mesin audio.
+     */
+    fun titikJalur(pengaturan: PengaturanMixer): FloatArray
 
     /** Terapkan preset bawaan dan nyalakan mixer. */
     fun terapkanPreset(id: String)

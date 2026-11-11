@@ -8,10 +8,12 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.ContextCompat
+import dev.bagja.streamvortex.pengambil_media.AsalLog
 import dev.bagja.streamvortex.pengambil_media.FormatMedia
 import dev.bagja.streamvortex.pengambil_media.HasilMedia
 import dev.bagja.streamvortex.pengambil_media.ItemUnduhan
 import dev.bagja.streamvortex.pengambil_media.JenisMedia
+import dev.bagja.streamvortex.pengambil_media.JurnalDebug
 import dev.bagja.streamvortex.pengambil_media.KegagalanEkstraksi
 import dev.bagja.streamvortex.pengambil_media.MesinUnduh
 import dev.bagja.streamvortex.pengambil_media.StatusUnduhan
@@ -142,6 +144,7 @@ class MesinUnduhAndroid(
         // Status bisa sudah dibatalkan saat menunggu giliran.
         if (_antrean.value.firstOrNull { it.id == id }?.status != StatusUnduhan.MENUNGGU) return
         ubah(id) { it.copy(status = StatusUnduhan.BERJALAN, pesanGagal = null) }
+        JurnalDebug.i(AsalLog.UNDUH, "[${id.take(6)}] mulai: ${m.format.label}, resolusi=${m.format.perluResolusi}, sumber=${m.hasil.mesin}")
         try {
             val url = m.urlNyata ?: (if (m.format.perluResolusi) penyelesai(m.format) else m.format.url).also { m.urlNyata = it }
             require(url.startsWith("http://") || url.startsWith("https://")) { "skema tidak diizinkan" }
@@ -151,6 +154,7 @@ class MesinUnduhAndroid(
             withContext(Dispatchers.IO) { terbitkan(berkasSementara(id), m) }
             berkasSementara(id).delete()
             ubah(id) { it.copy(status = StatusUnduhan.SELESAI, byteSelesai = it.byteTotal ?: it.byteSelesai) }
+            JurnalDebug.i(AsalLog.UNDUH, "[${id.take(6)}] SELESAI dan diterbitkan ke penyimpanan")
         } catch (e: CancellationException) {
             throw e // status (DIJEDA/DIBATALKAN) sudah ditetapkan oleh pemanggil sebelum membatalkan
         } catch (e: KegagalanEkstraksi) {
@@ -172,6 +176,7 @@ class MesinUnduhAndroid(
             .apply { if (mulaiByte > 0) header("Range", "bytes=$mulaiByte-") }
             .build()
         http.newCall(req).execute().use { resp ->
+            JurnalDebug.d(AsalLog.UNDUH, "[${id.take(6)}] respons HTTP ${resp.code}, tipe=${resp.header("Content-Type")}, panjang=${resp.body.contentLength()}, lanjut=${resp.code == 206}")
             if (!resp.isSuccessful) throw IOException("Server menolak permintaan (HTTP ${resp.code}).")
             if (resp.header("Content-Type").orEmpty().startsWith("text/", ignoreCase = true)) {
                 throw IOException("Server mengirim halaman web, bukan berkas media.")
@@ -270,6 +275,7 @@ class MesinUnduhAndroid(
     private fun berkasSementara(id: String) = File(folderSementara, "$id.part")
 
     private fun gagal(id: String, pesan: String) {
+        JurnalDebug.e(AsalLog.UNDUH, "[${id.take(6)}] GAGAL: $pesan")
         ubah(id) { it.copy(status = StatusUnduhan.GAGAL, pesanGagal = pesan) }
     }
 

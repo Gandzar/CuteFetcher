@@ -175,6 +175,14 @@ class SharedServices(
 
 class YMusicApplication : Application() {
 
+    override fun onCreate() {
+        super.onCreate()
+        // Jurnal debug pertama: agar crash dan log sejak awal proses tersimpan.
+        dev.bagja.streamvortex.debug.PenyimpanJurnal.mulai(this)
+        // Mixer DSP/8D harus ada di semua jalur audio sejak proses dimulai (lihat PengolahAudio).
+        dev.bagja.streamvortex.pengolah_audio.PengolahAudio.pasang(this)
+    }
+
     /** Cute Fetcher: kontrol mixer (berbagi MixerRepository dengan prosesor di pemutar lokal). */
     private val pengendaliMixer: dev.bagja.streamvortex.pengolah_audio.PengendaliMixer by lazy {
         dev.bagja.streamvortex.pengolah_audio.PengendaliMixerAndroid(applicationContext)
@@ -192,6 +200,11 @@ class YMusicApplication : Application() {
     /** Cute Fetcher: satu mesin ekstraksi (WebView dibuat malas saat pertama dipakai), dipakai pengelola dan mesin unduh. */
     private val mesinNimiyo: dev.bagja.streamvortex.mesin.MesinWebViewNimiyo by lazy {
         dev.bagja.streamvortex.mesin.MesinWebViewNimiyo(applicationContext, klienCute)
+    }
+
+    /** Cute Fetcher: aksi laporan untuk panel debug (bagikan, email ke pengembang, info perangkat). */
+    private val aksiLaporan: dev.bagja.streamvortex.pengambil_media.AksiLaporan by lazy {
+        dev.bagja.streamvortex.debug.AksiLaporanAndroid(applicationContext) { mesinNimiyo.statusMesin() }
     }
 
     private val pengelolaScraper: dev.bagja.streamvortex.pengambil_media.PengelolaScraper by lazy {
@@ -728,6 +741,8 @@ class YMusicApplication : Application() {
             pengelolaScraper = pengelolaScraper,
             mesinUnduh = mesinUnduh,
             pengendaliMixer = pengendaliMixer,
+            penguiMesin = mesinNimiyo,
+            aksiLaporan = aksiLaporan,
             systemAudioEffects = true,
             audioFocusSetting = true,
             stats = shared.stats,

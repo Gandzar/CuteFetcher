@@ -713,4 +713,32 @@
     <string name="mixer_kompresor">Kompresor</string>
     <string name="mixer_ruang">Ukuran ruang</string>
     <string name="mixer_volume">Volume utama</string>
+    <string name="debug_judul">Panel debug</string>
+    <string name="debug_tutup">Tutup</string>
+    <string name="debug_salin">Salin</string>
+    <string name="debug_bagikan">Bagikan</string>
+    <string name="debug_lapor">Lapor ke pengembang</string>
+    <string name="debug_hapus">Hapus</string>
+    <string name="debug_disalin">Disalin ke papan klip</string>
+    <string name="debug_semua">Semua</string>
+    <string name="debug_peringatan">Peringatan+</string>
+    <string name="debug_galat">Galat</string>
+    <string name="debug_rinci">Log rinci (cuplikan respons)</string>
+    <string name="debug_uji_koneksi">Uji koneksi</string>
+    <string name="debug_uji_server">Uji semua server</string>
+    <string name="debug_url_uji">Tautan untuk diuji (mis. tautan TikTok)</string>
+    <string name="debug_info">Info perangkat</string>
+    <string name="debug_sesi_lalu">Log sesi sebelumnya</string>
+    <string name="debug_kosong">Belum ada catatan log.</string>
+    <string name="debug_hasil_uji">Hasil uji</string>
+    <string name="debug_menguji">Sedang menguji…</string>
+    <string name="debug_sembunyikan">Sembunyikan</string>
+    <string name="debug_tampilkan">Tampilkan</string>
+    <string name="debug_lapor_subjek">Laporan bug Cute Fetcher</string>
+    <string name="debug_lapor_catatan">Tulis masalahnya di sini (apa yang kamu lakukan, apa yang diharapkan):</string>
+    <string name="debug_dipotong">Menampilkan %1$d catatan terbaru.</string>
+    <string name="pengunduh_buka_debug">Lihat detail (panel debug)</string>
+    <string name="debug_buka">Panel debug</string>
+    <string name="mixer_halus">Penghalusan (jalur gambar)</string>
+    <string name="mixer_gambar_petunjuk">Gambar jalurnya dengan jari. Kamu di tengah; atas = depan, bawah = belakang.</string>
 </resources>

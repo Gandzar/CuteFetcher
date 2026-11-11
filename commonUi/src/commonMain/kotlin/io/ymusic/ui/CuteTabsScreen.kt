@@ -19,6 +19,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -32,7 +33,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +50,7 @@ import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.debug_buka
 import io.ymusic.ui.resources.tab_galeri
 import io.ymusic.ui.resources.tab_mixer
 import io.ymusic.ui.resources.tab_pengaturan
@@ -100,6 +104,7 @@ fun CuteTabsScreen(
     onLogin: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    var tampilDebug by remember { mutableStateOf(false) }
     val gayaId by remember(graph) { graph.settings.flow(AppSettings.gayaTransisiTab) }.collectAsState()
     val gaya = GayaTransisiTab.dariId(gayaId)
     val tabAwal = remember(graph) { graph.settings.flow(AppSettings.tabTerakhir).value.coerceIn(0, TabCute.entries.lastIndex) }
@@ -110,6 +115,7 @@ fun CuteTabsScreen(
         androidx.compose.runtime.snapshotFlow { pager.settledPage }.drop(1).collect { graph.settings.put(AppSettings.tabTerakhir, it) }
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
         // Layar di dalam pager berada di atas bilah tab, jadi tidak perlu ruang ekstra untuk mini-player.
         CompositionLocalProvider(LocalMiniPlayerInset provides 0.dp) {
@@ -121,11 +127,16 @@ fun CuteTabsScreen(
             ) { halaman ->
                 Box(Modifier.fillMaxSize().transisiHalaman(gaya, pager, halaman)) {
                     when (TabCute.entries[halaman]) {
-                        TabCute.PENGUNDUH -> PengunduhScreen(pengelola = graph.pengelolaScraper, mesinUnduh = graph.mesinUnduh)
+                        TabCute.PENGUNDUH -> PengunduhScreen(
+                            pengelola = graph.pengelolaScraper,
+                            mesinUnduh = graph.mesinUnduh,
+                            onBukaDebug = { tampilDebug = true },
+                        )
                         TabCute.PUSTAKA -> LibraryScreen(graph, coordinator)
                         TabCute.MIXER -> MixerScreen(graph.pengendaliMixer)
                         TabCute.GALERI -> DownloadsScreen(graph, coordinator)
                         TabCute.PENGATURAN -> Column(Modifier.fillMaxSize()) {
+                            TombolPanelDebug { tampilDebug = true }
                             PemilihGayaTransisi(gaya) { baru -> scope.launch { graph.settings.put(AppSettings.gayaTransisiTab, baru.id) } }
                             Box(Modifier.weight(1f)) { SettingsScreen(graph, signedIn = signedIn, onLogin = onLogin) }
                         }
@@ -139,19 +150,32 @@ fun CuteTabsScreen(
             modifier = Modifier.padding(bottom = LocalMiniPlayerInset.current),
         )
     }
+    if (tampilDebug) {
+        // Menutupi seluruh layar lima-tab; tombol Kembali/Tutup menutupnya.
+        PanelDebugScreen(penguiMesin = graph.penguiMesin, aksiLaporan = graph.aksiLaporan, onTutup = { tampilDebug = false })
+    }
+    }
 }
 
-/** Efek transisi per halaman. `offset` = jarak halaman dari posisi tengah (0 = di tengah, ±1 = tetangga). */
+/**
+ * Efek transisi per halaman. `offset` = jarak halaman dari posisi tengah (0 = di tengah, ±1 = tetangga).
+ *
+ * PENTING (bug sentuhan v0.1.0): transformasi graphicsLayer ikut menggeser area sentuh. Halaman yang diam
+ * (offset 0) atau berada di luar layar (|offset| >= 1) TIDAK boleh ditransformasi, kalau tidak halaman
+ * tetangga yang tak terlihat menutupi halaman aktif dan menelan semua ketukan. Efek hanya berlaku
+ * selama jari menggeser (0 < |offset| < 1).
+ */
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.transisiHalaman(gaya: GayaTransisiTab, pager: PagerState, halaman: Int): Modifier =
     graphicsLayer {
         // Jarak halaman dari tengah memakai properti stabil: (halaman - tengah) - pecahan geser.
         val offset = (halaman - pager.currentPage) - pager.currentPageOffsetFraction
-        val jarak = abs(offset).coerceIn(0f, 1f)
+        val jarak = abs(offset)
+        if (gaya == GayaTransisiTab.HALUS || jarak >= 1f || jarak < 0.001f) return@graphicsLayer
         when (gaya) {
             GayaTransisiTab.HALUS -> Unit
 
-            GayaTransisiTab.KEDALAMAN_3D -> if (offset > 0f && offset <= 1f) {
+            GayaTransisiTab.KEDALAMAN_3D -> if (offset > 0f) {
                 // Halaman yang masuk dari kanan muncul "di bawah" halaman aktif, sambil membesar.
                 alpha = 1f - offset
                 translationX = size.width * -offset
@@ -168,18 +192,37 @@ private fun Modifier.transisiHalaman(gaya: GayaTransisiTab, pager: PagerState, h
             }
 
             GayaTransisiTab.PARALLAX -> {
-                translationX = size.width * -offset * 0.35f
+                // Bergeser sedikit berlawanan arah lalu kembali ke 0 di ujung (tak pernah menutupi tetangga).
+                translationX = -offset * size.width * 0.3f * (1f - jarak)
                 alpha = 1f - jarak * 0.4f
             }
 
             GayaTransisiTab.KUBUS_3D -> {
                 cameraDistance = 12f * density
                 transformOrigin = TransformOrigin(if (offset < 0f) 1f else 0f, 0.5f)
-                rotationY = -90f * offset.coerceIn(-1f, 1f)
+                rotationY = -90f * offset
                 alpha = 1f - jarak * 0.3f
             }
         }
     }
+
+@Composable
+private fun TombolPanelDebug(onClick: () -> Unit) {
+    val bentuk = RoundedCornerShape(50)
+    Row(
+        Modifier
+            .padding(horizontal = DesignSpacing.MarginCompact, vertical = 8.dp)
+            .clip(bentuk)
+            .border(1.dp, DesignColors.Outline, bentuk)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Rounded.BugReport, contentDescription = null, tint = DesignColors.Accent, modifier = Modifier.size(18.dp))
+        Text(stringResource(Res.string.debug_buka), color = DesignColors.InkStrong, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
 
 @Composable
 private fun PemilihGayaTransisi(terpilih: GayaTransisiTab, onPilih: (GayaTransisiTab) -> Unit) {

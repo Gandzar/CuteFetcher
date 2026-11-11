@@ -6,6 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import dev.bagja.streamvortex.pengambil_media.AsalLog
+import dev.bagja.streamvortex.pengambil_media.JurnalDebug
 import dev.bagja.streamvortex.pengolah_audio.data.MixerRepository
 import dev.bagja.streamvortex.pengolah_audio.data.MixerSettings
 import dev.bagja.streamvortex.pengolah_audio.data.PanFrame
@@ -24,7 +26,7 @@ import java.nio.ByteBuffer
  *  - mesin lama ditutup (thread reverb dihentikan) saat dikonfigurasi ulang atau di-reset;
  *  - onFlush memakai tanda tangan Media3 1.11 (StreamMetadata).
  */
-internal class MixerProcessor : BaseAudioProcessor() {
+internal class MixerProcessor(private val asal: String = "lokal") : BaseAudioProcessor() {
     private var engine: MixerEngine? = null
     private var inChannels = 2
     private val inL = FloatArray(BLOCK)
@@ -45,9 +47,11 @@ internal class MixerProcessor : BaseAudioProcessor() {
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount !in 1..2) {
+            JurnalDebug.w(AsalLog.MIXER, "[$asal] format tidak didukung (encoding=${inputAudioFormat.encoding}, kanal=${inputAudioFormat.channelCount}); efek dilewati")
             return AudioProcessor.AudioFormat.NOT_SET // format tak didukung: lewati efek, lagu tetap main
         }
         inChannels = inputAudioFormat.channelCount
+        JurnalDebug.i(AsalLog.MIXER, "[$asal] dikonfigurasi: ${inputAudioFormat.sampleRate} Hz, ${inputAudioFormat.channelCount} kanal")
         engine?.close()
         engine = MixerEngine(inputAudioFormat.sampleRate) { x, z, p -> MixerRepository.frame.value = PanFrame(x, z, p) }
         return AudioProcessor.AudioFormat(inputAudioFormat.sampleRate, 2, C.ENCODING_PCM_16BIT)
@@ -127,6 +131,7 @@ internal class MixerProcessor : BaseAudioProcessor() {
     }
 
     override fun onReset() {
+        JurnalDebug.d(AsalLog.MIXER, "[$asal] direset")
         engine?.close()
         engine = null
         jalurSiap = false

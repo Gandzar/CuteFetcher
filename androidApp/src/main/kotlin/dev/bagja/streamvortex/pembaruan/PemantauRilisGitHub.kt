@@ -3,6 +3,8 @@ package dev.bagja.streamvortex.pembaruan
 import android.content.Context
 import android.os.Build
 import dev.bagja.streamvortex.pembaruan_aplikasi.PenguraiRilisGitHub
+import dev.bagja.streamvortex.pengambil_media.AsalLog
+import dev.bagja.streamvortex.pengambil_media.JurnalDebug
 import io.ymusic.remoteconfig.AppUpdate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -47,10 +49,12 @@ class PemantauRilisGitHub(
             val hasil = ambil()
             prefs.edit().putLong(KUNCI_TERAKHIR, System.currentTimeMillis()).apply()
             _update.value = hasil
+            JurnalDebug.i(AsalLog.PEMBARUAN, if (hasil == null) "periksa rilis: tidak ada pembaruan" else "periksa rilis: ada versi ${hasil.versionName} (kode ${hasil.versionCode})")
             Result.success(hasil)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            JurnalDebug.w(AsalLog.PEMBARUAN, "periksa rilis gagal: ${e.javaClass.simpleName}: ${e.message}")
             Result.failure(e)
         }
     }

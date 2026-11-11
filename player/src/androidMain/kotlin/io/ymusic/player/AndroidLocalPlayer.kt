@@ -27,9 +27,9 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.ui.SubtitleView
 import dev.bagja.streamvortex.pengolah_audio.MixerProcessor
+import dev.bagja.streamvortex.pengolah_audio.PengolahAudio
 import dev.bagja.streamvortex.pengolah_audio.data.MixerRepository
 import io.ymusic.mse.AudioFxNative
-import io.ymusic.mse.MseAudioHooks
 import io.ymusic.player.media3.AudioFxProcessor
 import io.ymusic.player.media3.AudioFxProcessorChain
 import io.ymusic.player.media3.AudioFxTimingSink
@@ -77,14 +77,13 @@ internal class AndroidLocalPlayer(
     override val audioTracks: StateFlow<AudioTrackState> = _audioTracks.asStateFlow()
 
     init {
-        MixerRepository.init(context.applicationContext)
-        // Streaming MSE (YouTube) memakai mixer yang sama; MseAudioOutput membuat satu prosesor per sink.
-        MseAudioHooks.pabrikProsesor = { MixerProcessor() }
+        // Idempoten: pemasangan sebenarnya dilakukan di Application.onCreate (lihat PengolahAudio).
+        PengolahAudio.pasang(context.applicationContext)
     }
 
     private val fxHandle = AudioFxNative.create()
     private val fxProcessor = AudioFxProcessor(fxHandle)
-    private val mixerProcessor = MixerProcessor()
+    private val mixerProcessor = MixerProcessor("lokal")
     private var fxTiming: AudioFxTimingSink? = null
 
     private val _audioSessionId = MutableStateFlow(0)

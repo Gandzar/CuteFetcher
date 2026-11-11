@@ -5,6 +5,7 @@ import dev.bagja.streamvortex.pengolah_audio.data.BUILTIN_PRESETS
 import dev.bagja.streamvortex.pengolah_audio.data.MixerRepository
 import dev.bagja.streamvortex.pengolah_audio.data.MixerSettings
 import dev.bagja.streamvortex.pengolah_audio.data.Movement
+import dev.bagja.streamvortex.pengolah_audio.data.Pt
 import dev.bagja.streamvortex.pengolah_audio.dsp.PathLib
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,12 +30,23 @@ class PengendaliMixerAndroid(context: Context) : PengendaliMixer {
 
     override val pengaturan: StateFlow<PengaturanMixer> = _pengaturan.asStateFlow()
     override val bola: StateFlow<BolaSuara> = _bola.asStateFlow()
-    override val daftarJalur: List<InfoJalur> = PathLib.builtin.map { InfoJalur(it.id, it.label) } + InfoJalur(PengaturanMixer.JALUR_LISSAJOUS, "Lissajous")
+    override val daftarJalur: List<InfoJalur> = PathLib.builtin.map { InfoJalur(it.id, it.label) } +
+        InfoJalur(PengaturanMixer.JALUR_LISSAJOUS, "Lissajous") +
+        InfoJalur(PengaturanMixer.JALUR_KUSTOM, "Gambar sendiri")
     override val daftarPreset: List<InfoPreset> = BUILTIN_PRESETS.map { InfoPreset(it.id, it.name, it.description) }
 
     override fun ubah(transformasi: (PengaturanMixer) -> PengaturanMixer) {
         MixerRepository.update { dasar -> transformasi(dasar.keUi()).terapkanKe(dasar) }
     }
+
+    override fun titikJalur(pengaturan: PengaturanMixer): FloatArray = PathLib.resolve(
+        pengaturan.jalurId,
+        pengaturan.jalurKustom.chunked(2).filter { it.size == 2 }.map { Pt(it[0], it[1]) },
+        pengaturan.halusKustom,
+        pengaturan.lissajousFreqX,
+        pengaturan.lissajousFreqZ,
+        pengaturan.lissajousFase,
+    )
 
     override fun terapkanPreset(id: String) {
         val preset = BUILTIN_PRESETS.firstOrNull { it.id == id } ?: return
@@ -73,6 +85,8 @@ private fun MixerSettings.keUi() = PengaturanMixer(
     offsetZ = offsetZ,
     transisiDetik = transitionSeconds,
     volume = volume,
+    jalurKustom = customRaw.flatMap { listOf(it.x, it.z) },
+    halusKustom = smoothLevel,
 )
 
 /** Hanya field yang dikenal UI yang ditimpa; field lain (jalur kustom, tempo, dst.) tetap utuh. */
@@ -106,4 +120,6 @@ private fun PengaturanMixer.terapkanKe(dasar: MixerSettings) = dasar.copy(
     offsetZ = offsetZ,
     transitionSeconds = transisiDetik,
     volume = volume,
+    customRaw = jalurKustom.chunked(2).filter { it.size == 2 }.map { Pt(it[0], it[1]) },
+    smoothLevel = halusKustom,
 )

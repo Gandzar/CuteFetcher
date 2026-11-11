@@ -34,3 +34,14 @@ Semua fitur baru (Downloader Compose, scraper, DSP, lima tab, update engine). Ti
 
 ## Tahap 9
 - Audit statis lolos; optimasi: audio tanpa alokasi, WebView idle-shutdown, klien HTTP bersama, drawer dirapikan.
+
+## Hasil build nyata (run #2)
+- Terbukti hijau: kompilasi + tes :pengambil_media (14) dan :pembaruan_aplikasi (7). ffmpeg 4 ABI OK. Gradle configure OK.
+- Diperbaiki: XML string tidak valid (& tanpa escape). Berikutnya: lihat galat kompilasi :commonUi/:player/:mse/:androidApp di run #3.
+
+## Build hijau (run #5)
+- GitHub Actions: kompilasi seluruh modul + APK release lolos. Tes unit :pengambil_media (14) dan :pembaruan_aplikasi (7) lulus.
+- Belum terbukti: semua perilaku saat dijalankan di perangkat (lihat UJI_PERANGKAT.md). Ekstraksi scraper pihak ketiga, mixer di MSE, unduhan, update dalam aplikasi.
+
+## v0.2.0 (siap build)
+- Perbaikan bug dari uji perangkat + panel debug + jalur mixer + server Scrapr tambahan. Belum dikompilasi (menunggu run berikutnya).

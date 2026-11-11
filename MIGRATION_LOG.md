@@ -44,3 +44,20 @@
 - Audit statis (skrip): kurung seimbang, tidak ada impor tak terpakai, tidak ada identitas tanpa impor, kunci string ada, impor fungsi ekstensi Compose lengkap, AsyncImage/IntSetting/ekstensi settings cocok dengan kode asli.
 - Optimasi: MixerProcessor tanpa alokasi per buffer; WebView scraper dibuang setelah 2 menit menganggur (dibuat ulang saat perlu); satu OkHttpClient bersama (scraper, unduhan, pembaruan); drawer tidak lagi menampilkan "Pengunduh" ganda (hanya di layar lima tab); offset transisi pager memakai properti stabil (tanpa getOffsetDistanceInPages).
 - Repo dipindah ke akun Gandzar/CuteFetcher (limit akun lama). Semua tautan/REPO_RILIS diperbarui; pencocokan URL rilis kini tidak peka huruf besar-kecil.
+- build.yml: log build ditangkap (tee) + ringkasan error ke Summary + artifact log-build; --continue. Run #1: ffmpeg 4 ABI OK, gradle help OK, Build APK GAGAL (error belum terbaca: halaman MHTML tidak memuat log penuh).
+## Run #2 (GitHub Actions) — hasil nyata pertama
+- TERBUKTI: :pengambil_media dan :pembaruan_aplikasi dikompilasi (JVM) dan seluruh tes lulus: 14 tes + 7 tes, 0 gagal. Langkah "Uji unit" BUILD SUCCESSFUL.
+- Build APK gagal di :commonUi:convertXmlValueResourcesForCommonMain: karakter "&" tidak di-escape di strings.xml ("Audio DSP & 8D", "Filter & character"). DIPERBAIKI (&amp;) di values, values-id, values-in; seluruh XML proyek divalidasi.
+- Kompilasi Kotlin :commonUi, :player, :mse, :androidApp belum tercapai (terblokir XML); galat berikutnya baru terlihat di run #3.
+- Run #3: satu galat kompilasi :commonUi (PengunduhScreen.kt:384 AnimatedVisibility ambigu RowScope/BoxScope) -> diganti Crossfade.
+- Run #4: :commonUi/:player/:mse LULUS kompilasi. Galat :androidApp: REPO_RILIS tak terlihat (terselip di companion MseSurfaceBridge) -> dijadikan konstanta tingkat-file.
+- Run #5: BUILD HIJAU (APK release terbentuk). Berikutnya: uji perangkat nyata (UJI_PERANGKAT.md), lalu rilis v0.1.0.
+- build.yml: job rilis melampirkan APK+SHA256SUMS ke rilis yang sudah ada (dibuat via web) atau membuat draf. Nama APK terbukti: CuteFetcher-0.1.0-<abi>-release (cocok dengan parser updater).
+
+## v0.2.0 (perbaikan dari uji perangkat pengguna)
+- Bug sentuhan transisi tab (CuteTabsScreen.transisiHalaman): transformasi hanya saat 0<|offset|<1; tetangga diam/di luar layar tidak ditransformasi.
+- Mixer streaming: PengolahAudio.pasang() dipanggil di Application.onCreate (hook MSE sebelumnya hanya terpasang saat pemutar lokal lazy dibuat).
+- Scraper: JarKukiMemori (cookie antar-permintaan), noRedirect, galat jaringan jelas (status 0), batas waktu per server, rantai tanpa alias kembar, log per langkah; server port Scrapr (savetwt, spotmate, rapidsave) di assets/scraper/scrapers/scrapr.js; Reddit didukung.
+- Debug: JurnalDebug (commonMain, 7 tes), PenyimpanJurnal (berkas + crash handler), AksiLaporanAndroid, PanelDebugScreen, PenguiMesin (uji koneksi/server).
+- Mixer: pratinjau jalur + papan gambar jalur kustom (PengaturanMixer.jalurKustom/halusKustom, PengendaliMixer.titikJalur).
+- Versi: 0.2.0 (kode 200).
